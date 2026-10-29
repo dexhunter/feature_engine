@@ -1,4 +1,6 @@
 import numpy as np
+from pandas import Series
+from pandas.arrays import DatetimeArray
 
 FEATURES_SUPPORTED = [
     "month",
@@ -57,14 +59,68 @@ FEATURES_SUFFIXES = {
 }
 
 FEATURES_FUNCTIONS = {
-    "month": lambda x: x.dt.month,
-    "quarter": lambda x: x.dt.quarter,
+    "month": lambda x: (
+        Series(array.month, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.month
+    ),
+    "quarter": lambda x: (
+        Series(array.quarter, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.quarter
+    ),
     "semester": lambda x: np.where(x.dt.month <= 6, 1, 2).astype(np.int64),
-    "year": lambda x: x.dt.year,
+    "year": lambda x: (
+        Series(array.year, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.year
+    ),
     "week": lambda x: x.dt.isocalendar().week.astype("float64"),
-    "day_of_week": lambda x: x.dt.dayofweek,
-    "day_of_month": lambda x: x.dt.day,
-    "day_of_year": lambda x: x.dt.dayofyear,
+    "day_of_week": lambda x: (
+        Series(array.dayofweek, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.dayofweek
+    ),
+    "day_of_month": lambda x: (
+        Series(array.day, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.day
+    ),
+    "day_of_year": lambda x: (
+        Series(array.dayofyear, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.dayofyear
+    ),
     "weekend": lambda x: np.where(x.dt.dayofweek <= 4, 0, 1).astype(np.int64),
     "month_start": lambda x: x.dt.is_month_start.astype(np.int64),
     "month_end": lambda x: x.dt.is_month_end.astype(np.int64),
@@ -73,8 +129,44 @@ FEATURES_FUNCTIONS = {
     "year_start": lambda x: x.dt.is_year_start.astype(np.int64),
     "year_end": lambda x: x.dt.is_year_end.astype(np.int64),
     "leap_year": lambda x: x.dt.is_leap_year.astype(np.int64),
-    "days_in_month": lambda x: x.dt.days_in_month,
-    "hour": lambda x: x.dt.hour,
-    "minute": lambda x: x.dt.minute,
-    "second": lambda x: x.dt.second,
+    "days_in_month": lambda x: (
+        Series(array.days_in_month, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.days_in_month
+    ),
+    "hour": lambda x: (
+        Series(array.hour, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.hour
+    ),
+    "minute": lambda x: (
+        Series(array.minute, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.minute
+    ),
+    "second": lambda x: (
+        Series(array.second, index=x.index, name=x.name, copy=False)
+        if (
+            type(x) is Series
+            and not x.attrs
+            and x.flags.allows_duplicate_labels
+            and type(array := x._values) is DatetimeArray
+        )
+        else x.dt.second
+    ),
 }
