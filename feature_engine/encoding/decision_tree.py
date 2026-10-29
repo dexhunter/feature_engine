@@ -5,7 +5,10 @@ from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import get_scorer
+from sklearn.model_selection import GridSearchCV, check_cv
 from sklearn.pipeline import Pipeline
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.utils.multiclass import check_classification_targets, type_of_target
 
 from feature_engine._docstrings.fit_attributes import (
@@ -327,15 +330,62 @@ class DecisionTreeEncoder(CategoricalMethodsMixin, CategoricalInitMixin):
             ]
         )
 
-        Xt = pipe.fit_transform(X, y)
-
         encoder_ = {}
-        if self.precision is None:
+        if (
+            type(X) is pd.DataFrame
+            and type(y) is pd.Series
+            and isinstance(y.dtype, np.dtype)
+            and y.dtype.kind in "biuf"
+            and (self.cv is None or (type(self.cv) is int and self.cv >= 2))
+            and type(self.scoring) is str
+            and self.scoring == "neg_mean_squared_error"
+            and all(type(var) is str for var in variables_)
+        ):
+            encoder.fit(X[variables_], y)
+            model_class = (
+                DecisionTreeRegressor if self.regression else DecisionTreeClassifier
+            )
+            target = y.to_numpy()
+            # Integer CV uses the same deterministic splitter for every feature.
+            cv = check_cv(self.cv, y=target, classifier=not self.regression)
+            scorer = get_scorer(self.scoring)
+            models = {}
             for var in variables_:
-                encoder_[var] = dict(zip(X[var], Xt[var]))
+                # Reuse the ordinal mapping without a full transformed dataframe.
+                feature = (
+                    X[var]
+                    .map(encoder.encoder_dict_[var])
+                    .to_numpy(dtype=np.float32)
+                    .reshape(-1, 1)
+                )
+                model = GridSearchCV(
+                    model_class(random_state=self.random_state),
+                    cv=cv,
+                    scoring=scorer,
+                    param_grid=param_grid,
+                )
+                model.fit(feature, target)
+                # Integer targets cannot overflow the discarded squared-error score.
+                if target.dtype.kind == "f":
+                    model.score(feature, target)
+                models[var] = (model, feature)
+            for var in variables_:
+                model, feature = models[var]
+                if self.regression:
+                    predictions = model.predict(feature)
+                else:
+                    predictions = model.predict_proba(feature)[:, 1]
+                if self.precision is not None:
+                    predictions = np.round(predictions, self.precision)
+                encoder_[var] = dict(zip(X[var], predictions.tolist()))
         else:
-            for var in variables_:
-                encoder_[var] = dict(zip(X[var], np.round(Xt[var], self.precision)))
+            Xt = pipe.fit_transform(X, y)
+            if self.precision is None:
+                for var in variables_:
+                    encoder_[var] = dict(zip(X[var], Xt[var]))
+            else:
+                for var in variables_:
+                    encoder_[var] = dict(zip(X[var], np.round(Xt[var], self.precision)))
 
         if self.unseen == "encode":
             self._unseen = self.fill_value
